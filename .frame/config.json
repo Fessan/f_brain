@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "name": "f_brain",
+  "description": "",
+  "createdAt": "2026-02-17T08:25:15.556Z",
+  "initializedBy": "Frame",
+  "settings": {
+    "autoUpdateStructure": true,
+    "autoUpdateNotes": false,
+    "taskRecognition": true
+  },
+  "files": {
+    "agents": "AGENTS.md",
+    "claudeSymlink": "CLAUDE.md",
+    "structure": "STRUCTURE.json",
+    "notes": "PROJECT_NOTES.md",
+    "tasks": "tasks.json",
+    "quickstart": "QUICKSTART.md"
+  }
+}
