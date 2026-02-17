@@ -6,11 +6,11 @@
     "generatedBy": "Frame"
   },
   "version": "1.0",
-  "description": "Telegram-first personal assistant with voice transcription, Obsidian vault storage, Todoist MCP integration, and Claude-driven processing flows",
+  "description": "Telegram-first personal assistant with voice transcription, Obsidian vault storage, and layered LLM architecture (use cases + provider adapters)",
   "architecture": {
-    "type": "event-driven Telegram bot + file-based vault + subprocess LLM orchestration",
+    "type": "event-driven Telegram bot + file-based vault + layered LLM gateway architecture",
     "entryPoint": "src/d_brain/__main__.py",
-    "notes": "Aiogram handles Telegram updates. User inputs are persisted to vault files and session JSONL. Heavy processing commands (/process, /do, /weekly) run Claude CLI with MCP config, then optionally commit/push vault changes."
+    "notes": "Aiogram handles Telegram updates. User inputs are persisted to vault files and session JSONL. Heavy processing commands (/process, /do, /weekly) call processor use-cases, which delegate model execution to provider adapters (currently Claude CLI), then optionally commit/push vault changes."
   },
   "modules": {
     "config": {
@@ -60,8 +60,18 @@
     },
     "services-processor": {
       "path": "src/d_brain/services/processor.py",
-      "purpose": "Claude CLI orchestration for daily processing, ad-hoc requests, weekly digest",
+      "purpose": "Processor facade for daily/ad-hoc/weekly use-cases with provider injection",
+      "depends": ["llm-layer"]
+    },
+    "llm-layer": {
+      "path": "src/d_brain/llm/",
+      "purpose": "Layered LLM package: base contracts, provider adapters, router factory, and high-level use-cases",
       "depends": ["services-session"]
+    },
+    "llm-tools-contract": {
+      "path": "src/d_brain/llm/tools.py",
+      "purpose": "Canonical capability registry and structured tool execution contract shared across providers",
+      "depends": []
     },
     "services-git": {
       "path": "src/d_brain/services/git.py",
@@ -70,13 +80,23 @@
     },
     "ops-scripts": {
       "path": "scripts/",
-      "purpose": "Operational scripts for daily processing and weekly digest",
-      "depends": ["services-processor", "services-git"]
+      "purpose": "Operational scripts: process_daily.py and weekly.py on shared processor architecture, plus process.sh thin wrapper",
+      "depends": ["services-processor", "services-git", "bot-formatters", "config"]
+    },
+    "ops-daily-runner": {
+      "path": "scripts/process_daily.py",
+      "purpose": "Daily automation entrypoint using shared Python processor architecture",
+      "depends": ["services-processor", "services-git", "bot-formatters", "config"]
     },
     "deploy-units": {
       "path": "deploy/",
       "purpose": "systemd service and timer templates",
       "depends": ["ops-scripts"]
+    },
+    "qa-llm-migration-matrix": {
+      "path": "docs/llm-migration-test-matrix.md",
+      "purpose": "Provider parity and failure-mode acceptance matrix for LLM architecture migration",
+      "depends": ["llm-layer", "ops-scripts", "bot-handlers"]
     },
     "vault": {
       "path": "vault/",
@@ -87,8 +107,9 @@
   "dataFlow": [
     "Telegram update -> aiogram handler -> optional transcription/file download",
     "Handler -> VaultStorage append/save attachment + SessionStore append",
-    "User triggers /process|/do|/weekly -> ClaudeProcessor subprocess call with mcp-config.json",
-    "Claude output -> Telegram formatter sanitization -> response message",
+    "User triggers /process|/do|/weekly -> LLMProcessor facade -> use-case prompt building",
+    "Use-case -> provider adapter (Claude CLI currently) -> raw output -> formatted report dict",
+    "Report -> Telegram formatter sanitization -> response message",
     "On successful processing -> VaultGit commit/push (in selected handlers/scripts)"
   ],
   "conventions": {

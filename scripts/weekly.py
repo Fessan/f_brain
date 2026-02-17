@@ -13,9 +13,10 @@ from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
+from d_brain.bot.formatters import format_process_report
 from d_brain.config import get_settings
 from d_brain.services.git import VaultGit
-from d_brain.services.processor import ClaudeProcessor
+from d_brain.services.processor import LLMProcessor
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,18 +28,18 @@ logger = logging.getLogger(__name__)
 async def main() -> None:
     """Generate weekly digest and send to Telegram."""
     settings = get_settings()
-    processor = ClaudeProcessor(settings.vault_path, settings.todoist_api_key)
+    processor = LLMProcessor(settings.vault_path, settings.todoist_api_key)
     git = VaultGit(settings.vault_path)
 
     logger.info("Starting weekly digest generation...")
 
-    result = processor.generate_weekly()
+    result_envelope = processor.generate_weekly_result()
+    legacy_result = result_envelope.to_legacy_dict()
+    report = format_process_report(legacy_result)
 
-    if "error" in result:
-        report = f"Error: {result['error']}"
-        logger.error("Weekly digest failed: %s", result["error"])
+    if result_envelope.error is not None:
+        logger.error("Weekly digest failed: %s", result_envelope.error)
     else:
-        report = result.get("report", "No output")
         logger.info("Weekly digest generated successfully")
         # Commit any changes
         git.commit_and_push("chore: weekly digest")
