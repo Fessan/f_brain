@@ -1,0 +1,60 @@
+{
+  "_frame_metadata": {
+    "purpose": "Task tracking for the project",
+    "forAI": "Check this file to understand what tasks are pending, in progress, or completed. Update task status as you work. Add new tasks when discovered during development. Follow the task recognition rules in AGENTS.md. IMPORTANT: Include userRequest (original user prompt), detailed description, and acceptanceCriteria for each task.",
+    "lastUpdated": "2026-02-17",
+    "generatedBy": "Frame"
+  },
+  "project": "f_brain",
+  "version": "1.1",
+  "lastUpdated": "2026-02-17T08:52:48Z",
+  "tasks": {
+    "pending": [],
+    "inProgress": [],
+    "completed": [
+      {
+        "id": "task-001",
+        "title": "Update project documentation to current state",
+        "description": "Updated documentation artifacts to match the actual Python/uv project setup and current runtime architecture. Rewrote QUICKSTART.md with real setup/run/validation commands, filled STRUCTURE.json with architecture/modules/data flow/conventions, aligned .env.example auth semantics by adding ALLOW_ALL_USERS and clarifying ALLOWED_USER_IDS behavior, and fixed docs/vps-setup.md examples (environment block and yearly goals filename).",
+        "userRequest": "актуалиизруй пока документацию поп роекту. Делать план будем после этого",
+        "acceptanceCriteria": "QUICKSTART.md contains Python/uv instructions instead of npm placeholders; STRUCTURE.json is populated and valid JSON; .env.example includes ALLOW_ALL_USERS and correct access notes; docs/vps-setup.md uses existing goals file name and updated env sample; sanity checks run successfully (json.tool for STRUCTURE.json and compileall for src).",
+        "notes": "User confirmed goals do not need to be created from scratch because template files already exist in vault/goals.",
+        "status": "completed",
+        "priority": "medium",
+        "category": "docs",
+        "context": "Session 2026-02-17: documentation alignment before planning implementation changes.",
+        "createdAt": "2026-02-17T08:52:15Z",
+        "updatedAt": "2026-02-17T08:52:48Z",
+        "completedAt": "2026-02-17T08:52:15Z"
+      }
+    ]
+  },
+  "taskSchema": {
+    "_comment": "This schema shows the expected structure for each task",
+    "id": "unique-id (task-xxx format)",
+    "title": "Short actionable title (max 60 chars)",
+    "description": "AI's detailed explanation - what, how, which files affected",
+    "userRequest": "Original user prompt/request - copy verbatim",
+    "acceptanceCriteria": "When is this task done? Concrete testable criteria",
+    "notes": "Discussion notes, alternatives considered, dependencies (optional)",
+    "status": "pending | in_progress | completed",
+    "priority": "high | medium | low",
+    "category": "feature | fix | refactor | docs | test",
+    "context": "Session date and context",
+    "createdAt": "ISO timestamp",
+    "updatedAt": "ISO timestamp",
+    "completedAt": "ISO timestamp | null"
+  },
+  "metadata": {
+    "totalCreated": 1,
+    "totalCompleted": 1
+  },
+  "categories": {
+    "feature": "New features",
+    "fix": "Bug fixes",
+    "refactor": "Code improvements",
+    "docs": "Documentation",
+    "test": "Testing",
+    "research": "Research and exploration"
+  }
+}

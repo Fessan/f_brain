@@ -216,6 +216,7 @@ DEEPGRAM_API_KEY=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0
 TODOIST_API_KEY=
 VAULT_PATH=./vault
 ALLOWED_USER_IDS=[123456789]
+ALLOW_ALL_USERS=false
 ```
 
 Save: `Ctrl+O`, `Enter`, `Ctrl+X`
@@ -244,7 +245,7 @@ Edit goals to match yours:
 
 ```bash
 nano vault/goals/0-vision-3y.md    # 3-year vision
-nano vault/goals/1-yearly-2026.md  # Yearly goals
+nano vault/goals/1-yearly-2025.md  # Yearly goals (rename/copy for new year if needed)
 nano vault/goals/2-monthly.md      # Monthly priorities
 nano vault/goals/3-weekly.md       # Weekly focus
 ```

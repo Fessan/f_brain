@@ -1,0 +1,101 @@
+{
+  "_frame_metadata": {
+    "purpose": "Project structure and module map for AI assistants",
+    "forAI": "Read this file FIRST when starting work on this project. It contains the module structure, data flow, and conventions. Update this file when you add new modules or change the architecture.",
+    "lastUpdated": "2026-02-17",
+    "generatedBy": "Frame"
+  },
+  "version": "1.0",
+  "description": "Telegram-first personal assistant with voice transcription, Obsidian vault storage, Todoist MCP integration, and Claude-driven processing flows",
+  "architecture": {
+    "type": "event-driven Telegram bot + file-based vault + subprocess LLM orchestration",
+    "entryPoint": "src/d_brain/__main__.py",
+    "notes": "Aiogram handles Telegram updates. User inputs are persisted to vault files and session JSONL. Heavy processing commands (/process, /do, /weekly) run Claude CLI with MCP config, then optionally commit/push vault changes."
+  },
+  "modules": {
+    "config": {
+      "path": "src/d_brain/config.py",
+      "purpose": "Typed environment settings via Pydantic Settings",
+      "depends": []
+    },
+    "bot-main": {
+      "path": "src/d_brain/bot/main.py",
+      "purpose": "Bot/dispatcher initialization, router registration, auth middleware",
+      "depends": ["config", "bot-handlers"]
+    },
+    "bot-handlers": {
+      "path": "src/d_brain/bot/handlers/",
+      "purpose": "Telegram handlers for commands and content types (voice/text/photo/forward/process/do/weekly)",
+      "depends": ["config", "services-transcription", "services-storage", "services-session", "services-processor", "services-git", "bot-formatters", "bot-keyboards", "bot-states"]
+    },
+    "bot-keyboards": {
+      "path": "src/d_brain/bot/keyboards.py",
+      "purpose": "Reply keyboard layout",
+      "depends": []
+    },
+    "bot-formatters": {
+      "path": "src/d_brain/bot/formatters.py",
+      "purpose": "Sanitize/validate/truncate HTML responses for Telegram",
+      "depends": []
+    },
+    "bot-states": {
+      "path": "src/d_brain/bot/states.py",
+      "purpose": "FSM states for multi-step /do flow",
+      "depends": []
+    },
+    "services-transcription": {
+      "path": "src/d_brain/services/transcription.py",
+      "purpose": "Deepgram async transcription",
+      "depends": []
+    },
+    "services-storage": {
+      "path": "src/d_brain/services/storage.py",
+      "purpose": "Vault file IO (daily notes and attachments)",
+      "depends": []
+    },
+    "services-session": {
+      "path": "src/d_brain/services/session.py",
+      "purpose": "Append-only JSONL session history per Telegram user",
+      "depends": []
+    },
+    "services-processor": {
+      "path": "src/d_brain/services/processor.py",
+      "purpose": "Claude CLI orchestration for daily processing, ad-hoc requests, weekly digest",
+      "depends": ["services-session"]
+    },
+    "services-git": {
+      "path": "src/d_brain/services/git.py",
+      "purpose": "Git status/commit/push automation for vault updates",
+      "depends": []
+    },
+    "ops-scripts": {
+      "path": "scripts/",
+      "purpose": "Operational scripts for daily processing and weekly digest",
+      "depends": ["services-processor", "services-git"]
+    },
+    "deploy-units": {
+      "path": "deploy/",
+      "purpose": "systemd service and timer templates",
+      "depends": ["ops-scripts"]
+    },
+    "vault": {
+      "path": "vault/",
+      "purpose": "Personal knowledge data, goals, MOCs, attachments, generated summaries",
+      "depends": []
+    }
+  },
+  "dataFlow": [
+    "Telegram update -> aiogram handler -> optional transcription/file download",
+    "Handler -> VaultStorage append/save attachment + SessionStore append",
+    "User triggers /process|/do|/weekly -> ClaudeProcessor subprocess call with mcp-config.json",
+    "Claude output -> Telegram formatter sanitization -> response message",
+    "On successful processing -> VaultGit commit/push (in selected handlers/scripts)"
+  ],
+  "conventions": {
+    "language": "Code comments and docs are primarily English; user-facing bot messages are Russian",
+    "telegram-format": "Bot responses use parse_mode=HTML with explicit sanitization",
+    "storage": "Daily notes are markdown in vault/daily/YYYY-MM-DD.md; sessions stored in vault/.sessions/*.jsonl",
+    "security": "Access controlled by allowed_user_ids unless allow_all_users=true",
+    "runtime": "Run via uv and Python module entrypoint"
+  }
+}
