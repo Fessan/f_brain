@@ -10,12 +10,12 @@
   "architecture": {
     "type": "event-driven Telegram bot + file-based vault + layered LLM gateway architecture",
     "entryPoint": "src/d_brain/__main__.py",
-    "notes": "Aiogram handles Telegram updates. User inputs are persisted to vault files and session JSONL. Heavy processing commands (/process, /do, /weekly) call processor use-cases, which delegate model execution to provider adapters (currently Claude CLI), then optionally commit/push vault changes."
+    "notes": "Aiogram handles Telegram updates. User inputs are persisted to vault files and session JSONL. Heavy processing commands (/process, /do, /weekly) call processor use-cases, which delegate model execution to provider adapters selected by config (claude-cli/openai), then optionally commit/push vault changes."
   },
   "modules": {
     "config": {
       "path": "src/d_brain/config.py",
-      "purpose": "Typed environment settings via Pydantic Settings",
+      "purpose": "Typed environment settings via Pydantic Settings with provider-specific validation",
       "depends": []
     },
     "bot-main": {
@@ -65,7 +65,7 @@
     },
     "llm-layer": {
       "path": "src/d_brain/llm/",
-      "purpose": "Layered LLM package: base contracts, provider adapters, router factory, and high-level use-cases",
+      "purpose": "Layered LLM package: base contracts, provider adapters (Claude/OpenAI), router factory, and high-level use-cases",
       "depends": ["services-session"]
     },
     "llm-tools-contract": {
@@ -73,9 +73,14 @@
       "purpose": "Canonical capability registry and structured tool execution contract shared across providers",
       "depends": []
     },
+    "llm-tool-runtime": {
+      "path": "src/d_brain/llm/runtime.py",
+      "purpose": "Default capability executor for todoist.* and vault.* used by provider tool loops",
+      "depends": ["llm-tools-contract"]
+    },
     "services-git": {
       "path": "src/d_brain/services/git.py",
-      "purpose": "Git status/commit/push automation for vault updates",
+      "purpose": "Git status/commit/push automation for vault updates with repository-root scope detection and cross-process locking",
       "depends": []
     },
     "ops-scripts": {
@@ -93,10 +98,45 @@
       "purpose": "systemd service and timer templates",
       "depends": ["ops-scripts"]
     },
+    "container-runtime": {
+      "path": "Dockerfile + docker-compose.yml",
+      "purpose": "Container image and compose runtime for closed-contour execution of bot and scheduler services",
+      "depends": ["config", "bot-main", "llm-layer", "ops-scripts"]
+    },
+    "container-scheduler": {
+      "path": "scripts/run_scheduler.sh",
+      "purpose": "In-container cron scheduler for daily and weekly jobs via supercronic",
+      "depends": ["ops-scripts", "container-runtime"]
+    },
+    "container-entrypoint": {
+      "path": "scripts/docker-entrypoint.sh",
+      "purpose": "Container startup bootstrap: ensure writable mounted state, seed git metadata volume, then drop privileges to app user",
+      "depends": ["container-runtime", "services-git"]
+    },
+    "make-workflow": {
+      "path": "Makefile",
+      "purpose": "Unified build/check/test/deploy commands over docker compose",
+      "depends": ["container-runtime", "container-scheduler"]
+    },
+    "docs-docker-deploy": {
+      "path": "docs/docker-deploy.md",
+      "purpose": "Operator guide for Docker + Make workflow with in-container scheduling",
+      "depends": ["container-runtime", "make-workflow"]
+    },
+    "docs-provider-rollout-policy": {
+      "path": "docs/provider-rollout-policy.md",
+      "purpose": "Production default provider and fallback switch policy for closed-contour operations",
+      "depends": ["llm-layer", "container-runtime", "make-workflow", "qa-llm-migration-matrix"]
+    },
+    "qa-local-migration-tests": {
+      "path": "tests/test_llm_migration_local.py",
+      "purpose": "Credential-free local verification suite for migration matrix contracts and failure-safe behavior",
+      "depends": ["llm-layer", "bot-formatters", "services-session", "bot-handlers"]
+    },
     "qa-llm-migration-matrix": {
       "path": "docs/llm-migration-test-matrix.md",
       "purpose": "Provider parity and failure-mode acceptance matrix for LLM architecture migration",
-      "depends": ["llm-layer", "ops-scripts", "bot-handlers"]
+      "depends": ["llm-layer", "ops-scripts", "bot-handlers", "qa-local-migration-tests"]
     },
     "vault": {
       "path": "vault/",
@@ -108,15 +148,16 @@
     "Telegram update -> aiogram handler -> optional transcription/file download",
     "Handler -> VaultStorage append/save attachment + SessionStore append",
     "User triggers /process|/do|/weekly -> LLMProcessor facade -> use-case prompt building",
-    "Use-case -> provider adapter (Claude CLI currently) -> raw output -> formatted report dict",
+    "Scheduler service (supercronic) -> scripts/process_daily.py and scripts/weekly.py in container runtime",
+    "Use-case -> provider adapter (selected by llm_provider) -> raw output -> formatted report dict",
     "Report -> Telegram formatter sanitization -> response message",
-    "On successful processing -> VaultGit commit/push (in selected handlers/scripts)"
+    "On successful processing -> VaultGit commit/push with shared lock and repo-root git scope (in selected handlers/scripts)"
   ],
   "conventions": {
     "language": "Code comments and docs are primarily English; user-facing bot messages are Russian",
     "telegram-format": "Bot responses use parse_mode=HTML with explicit sanitization",
     "storage": "Daily notes are markdown in vault/daily/YYYY-MM-DD.md; sessions stored in vault/.sessions/*.jsonl",
     "security": "Access controlled by allowed_user_ids unless allow_all_users=true",
-    "runtime": "Run via uv and Python module entrypoint"
+    "runtime": "Run via uv and Python module entrypoint, or via Docker Compose closed-contour services"
   }
 }

@@ -11,7 +11,7 @@ from d_brain.llm import (
     LLMResponseEnvelope,
     PromptContextLoader,
     WeeklyDigestUseCase,
-    create_default_provider,
+    create_provider,
 )
 
 
@@ -22,12 +22,20 @@ class LLMProcessor:
         self,
         vault_path: Path,
         todoist_api_key: str = "",
+        provider_name: str = "claude-cli",
+        openai_api_key: str = "",
+        openai_model: str = "",
+        openai_base_url: str = "https://api.openai.com/v1",
         provider: LLMProvider | None = None,
     ) -> None:
         self.vault_path = Path(vault_path)
-        self.provider = provider or create_default_provider(
+        self.provider = provider or create_provider(
             self.vault_path,
+            provider_name=provider_name,
             todoist_api_key=todoist_api_key,
+            openai_api_key=openai_api_key,
+            openai_model=openai_model,
+            openai_base_url=openai_base_url,
         )
 
         context_loader = PromptContextLoader(self.vault_path)

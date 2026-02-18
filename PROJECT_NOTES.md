@@ -163,3 +163,108 @@ Decision implemented in docs:
   - explicit negative scenarios (timeouts, tool errors, malformed HTML, partial capabilities, provider outage),
   - acceptance gates for rollout.
 - Updated `STRUCTURE.json` to include the QA matrix artifact in project architecture map.
+
+### [2026-02-17] Added Provider Config Validation and Routing
+Decision implemented in code:
+- Added provider config fields to `Settings`: `llm_provider`, `openai_api_key`, `openai_model`, `openai_base_url`.
+- Added fail-fast validation: when `LLM_PROVIDER=openai`, both `OPENAI_API_KEY` and `OPENAI_MODEL` are required.
+- Added `OpenAIProvider` adapter (`src/d_brain/llm/openai_api.py`) and extended router selection in `src/d_brain/llm/router.py`.
+- Updated handlers and scripts to pass provider config into `LLMProcessor` so runtime provider selection is centralized and explicit.
+
+### [2026-02-17] OpenAI Tool Loop Connected to Capability Runtime
+Decision implemented in code:
+- Added `DefaultToolRuntime` (`src/d_brain/llm/runtime.py`) to execute canonical capabilities (`todoist.*`, `vault.*`) with structured success/error payloads.
+- Extended `OpenAIProvider` to run iterative tool-calling loop using OpenAI-compatible `tools` API and capability schemas from registry.
+- Wired router to inject capability registry + runtime into OpenAI provider creation.
+- Propagated `tool_failures` metadata from provider result into use-case response envelope for observability and parity debugging.
+
+### [2026-02-17] Provider-Aware Prompt Tool Contract and Docs Sync
+Decision implemented in code/docs:
+- Added provider-aware prompt tool instructions in `src/d_brain/llm/use_cases.py`:
+  - `claude-cli` path keeps MCP naming (`mcp__todoist__*`),
+  - `openai` path uses function tool names (`todoist_*`, `vault_*`) exposed by capability registry.
+- Removed MCP-only wording from generic execution steps so prompts are valid across both providers.
+- Updated `QUICKSTART.md` and `STRUCTURE.json` to reflect provider-selectable runtime and current operational requirements.
+
+### [2026-02-17] Chosen Deploy/Test Model: Docker Runtime + Host Scheduler (Option A)
+User: так. давай подумаем над тем как тестироватьи  разворачивать? я бы хотел делалать это в докер файле используя мейк файл
+
+User: ок. дава
+
+User: делай А
+
+Decision implemented:
+- Added container runtime artifacts:
+  - `Dockerfile`
+  - `docker-compose.yml`
+  - `.dockerignore`
+- Added operational command surface in `Makefile`:
+  - `build`, `up`, `down`, `restart`, `logs`, `ps`
+  - `check`, `test`
+  - `process-daily`, `weekly`, `deploy`, `claude-auth`
+- Added operator docs for this flow:
+  - `docs/docker-deploy.md`
+  - Updated `QUICKSTART.md` and `docs/vps-setup.md` with Docker + Make commands
+- Kept scheduled processing in host timers/cron by invoking Make targets (`make process-daily`, `make weekly`) to avoid in-container scheduler complexity.
+
+### [2026-02-17] Revised to Fully Closed Docker Contour
+User: так подожди. все таки нужен вараинт И. я хочу что бы вс ебыло в закртом конткре. нужен докер тогда
+
+Decision implemented:
+- Replaced host-scheduler approach with fully containerized scheduling:
+  - Added `scripts/run_scheduler.sh` with `supercronic` and env-driven cron expressions.
+  - Updated `docker-compose.yml` to run two services:
+    - `bot` (Telegram runtime)
+    - `scheduler` (daily/weekly job runner)
+- Added persistent named volumes for closed contour state:
+  - `vault-data` for vault artifacts
+  - `claude-data` for Claude auth/runtime state
+- Updated `Dockerfile` to include `supercronic` and Node runtime from `node:20-bookworm-slim` stage.
+- Updated `Makefile` targets to operate full stack (`bot` + `scheduler`) and include scheduler script validation.
+- Updated docs (`docs/docker-deploy.md`, `QUICKSTART.md`, `docs/vps-setup.md`) and `.env.example` (`DAILY_CRON`, `WEEKLY_CRON`, `TZ`) for closed-contour operation.
+
+### [2026-02-17] Phase-3 Local Verification Executed
+User: ок. что там дальше по палну?
+
+User: да. делай
+
+Decision implemented:
+- Added local migration verification suite `tests/test_llm_migration_local.py` for scenarios that do not require external credentials:
+  - provider/config fail-fast checks,
+  - output sanitization/fallback behavior,
+  - response envelope propagation and metadata checks,
+  - session corruption tolerance,
+  - non-blocking policy precondition (`asyncio.to_thread` presence in handlers),
+  - weekly summary persistence and MOC update flow.
+- Updated `docs/llm-migration-test-matrix.md` with an execution status section (PASS/BLOCKED split) for local closed-contour verification.
+- Marked remaining credential-dependent E2E matrix and rollout policy as pending follow-up tasks in `tasks.json`.
+- During local verification, fixed two operational issues:
+  - Included `tests/` in Docker image so `make test` actually executes pytest in container.
+  - Quoted `DAILY_CRON`/`WEEKLY_CRON` defaults in `.env.example` and docs to keep `.env` shell-compatible when sourced by scripts.
+
+### [2026-02-17] Production Provider Rollout Policy Finalized
+User: делай
+
+Decision implemented:
+- Defined production provider policy in `docs/provider-rollout-policy.md`.
+- Chosen default provider: `claude-cli` until credentialed matrix (`task-018`) is fully passed.
+- Chosen fallback model: manual operational switch (`LLM_PROVIDER` + `make restart`) without automatic runtime failover.
+- Added explicit promotion criteria for `openai` and documented rollback procedure.
+
+### [2026-02-17] Closed-Contour Git/Volume Hardening After Review
+User: это тогда уже завтра. сейчас проведи анализ сдеанного. поищи пробелмы. выхови код ревью
+
+User: 1. от корня. 2. надо исправлять
+
+Decision implemented:
+- Updated `VaultGit` to detect repository root via `git rev-parse --show-toplevel` and run git commands from root while scoping staged/status files to `vault/`.
+- Fixed `commit_and_push` behavior so git failures return `False` (no longer masked as success when commit fails).
+- Added file lock (`.git/vault-git-ops.lock`) to serialize concurrent git operations between bot and scheduler containers.
+- Added `scripts/docker-entrypoint.sh`:
+  - ensures `/app/vault`, `/app/.git`, `/home/app/.claude` are writable,
+  - seeds `git-data` volume from image template (`/app/.git-template`) on first boot,
+  - drops privileges to `app` via `gosu`.
+- Updated Docker stack:
+  - `Dockerfile`: installs `gosu`, includes git template, uses entrypoint bootstrap.
+  - `docker-compose.yml`: adds shared `git-data` volume for both `bot` and `scheduler`.
+- Updated docs (`docs/docker-deploy.md`, `QUICKSTART.md`) and added regression tests (`tests/test_vault_git.py`) for the new git contract.

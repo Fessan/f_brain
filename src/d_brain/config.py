@@ -1,8 +1,10 @@
 """Application configuration using Pydantic Settings."""
 
+from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +20,16 @@ class Settings(BaseSettings):
     telegram_bot_token: str = Field(description="Telegram Bot API token")
     deepgram_api_key: str = Field(description="Deepgram API key for transcription")
     todoist_api_key: str = Field(default="", description="Todoist API key for tasks")
+    llm_provider: Literal["claude-cli", "openai"] = Field(
+        default="claude-cli",
+        description="LLM provider backend",
+    )
+    openai_api_key: str = Field(default="", description="OpenAI-compatible API key")
+    openai_model: str = Field(default="", description="OpenAI-compatible model name")
+    openai_base_url: str = Field(
+        default="https://api.openai.com/v1",
+        description="OpenAI-compatible API base URL",
+    )
     vault_path: Path = Field(
         default=Path("./vault"),
         description="Path to Obsidian vault directory",
@@ -46,7 +58,24 @@ class Settings(BaseSettings):
         """Path to thoughts directory."""
         return self.vault_path / "thoughts"
 
+    @model_validator(mode="after")
+    def validate_llm_config(self) -> "Settings":
+        """Validate provider-specific settings."""
+        if self.llm_provider == "openai":
+            missing: list[str] = []
+            if not self.openai_api_key:
+                missing.append("OPENAI_API_KEY")
+            if not self.openai_model:
+                missing.append("OPENAI_MODEL")
+            if missing:
+                missing_str = ", ".join(missing)
+                raise ValueError(
+                    f"LLM_PROVIDER=openai requires the following settings: {missing_str}"
+                )
+        return self
 
+
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Get application settings instance."""
+    """Get cached application settings instance."""
     return Settings()

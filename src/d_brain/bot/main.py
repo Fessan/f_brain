@@ -64,6 +64,15 @@ def create_auth_middleware(settings: Settings) -> MiddlewareType:
             user = event.message.from_user
         elif event.callback_query:
             user = event.callback_query.from_user
+        elif event.edited_message:
+            user = event.edited_message.from_user
+        elif event.inline_query:
+            user = event.inline_query.from_user
+
+        # Deny access when user cannot be identified
+        if user is None:
+            logger.warning("Cannot identify user from update, denying access")
+            return None
 
         # If no users allowed and not allow_all_users -> deny everyone
         if not settings.allowed_user_ids:
@@ -71,7 +80,7 @@ def create_auth_middleware(settings: Settings) -> MiddlewareType:
             return None
 
         # Check if user is in allowed list
-        if user and user.id not in settings.allowed_user_ids:
+        if user.id not in settings.allowed_user_ids:
             logger.warning("Unauthorized access attempt from user %s", user.id)
             return None
 

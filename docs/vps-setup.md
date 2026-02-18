@@ -414,6 +414,30 @@ If prompted for password, use Personal Access Token:
 
 ---
 
+## Docker + Make Alternative (Closed Contour)
+
+If you prefer fully containerized runtime and scheduling:
+
+```bash
+cd ~/projects/agent-second-brain
+make build
+make up
+make logs
+```
+
+Adjust scheduler expressions in `.env`:
+
+```bash
+DAILY_CRON="0 21 * * *"
+WEEKLY_CRON="0 9 * * 1"
+TZ=UTC
+```
+
+See detailed guide: `docs/docker-deploy.md`.
+Provider rollout/fallback policy: `docs/provider-rollout-policy.md`.
+
+---
+
 ## Useful Commands
 
 ```bash
@@ -441,6 +465,11 @@ sudo systemctl list-timers
 # Manual processing
 cd ~/projects/agent-second-brain
 ./scripts/process.sh
+
+# Containerized checks and jobs
+make check
+make process-daily
+make weekly
 
 # Update code
 cd ~/projects/agent-second-brain

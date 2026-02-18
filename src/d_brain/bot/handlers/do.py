@@ -17,6 +17,8 @@ from d_brain.services.transcription import DeepgramTranscriber
 router = Router(name="do")
 logger = logging.getLogger(__name__)
 
+MAX_WAIT_SECONDS = 1500  # slightly above provider timeout (1200s)
+
 
 @router.message(Command("do"))
 async def cmd_do(message: Message, command: CommandObject, state: FSMContext) -> None:
@@ -62,9 +64,9 @@ async def handle_do_input(message: Message, bot: Bot, state: FSMContext) -> None
 
             audio_bytes = file_bytes.read()
             prompt = await transcriber.transcribe(audio_bytes)
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to transcribe voice for /do")
-            await message.answer(f"❌ Не удалось транскрибировать: {e}")
+            await message.answer("❌ Не удалось транскрибировать голосовое")
             return
 
         if not prompt:
@@ -90,33 +92,51 @@ async def process_request(message: Message, prompt: str, user_id: int = 0) -> No
     """Process the user's request with Claude."""
     status_msg = await message.answer("⏳ Выполняю...")
 
-    settings = get_settings()
-    processor = ClaudeProcessor(settings.vault_path, settings.todoist_api_key)
-
-    async def run_with_progress() -> dict:
-        task = asyncio.create_task(
-            asyncio.to_thread(processor.execute_prompt, prompt, user_id)
+    try:
+        settings = get_settings()
+        processor = ClaudeProcessor(
+            settings.vault_path,
+            settings.todoist_api_key,
+            provider_name=settings.llm_provider,
+            openai_api_key=settings.openai_api_key,
+            openai_model=settings.openai_model,
+            openai_base_url=settings.openai_base_url,
         )
 
-        elapsed = 0
-        while not task.done():
-            await asyncio.sleep(30)
-            elapsed += 30
+        async def run_with_progress() -> dict:
+            task = asyncio.create_task(
+                asyncio.to_thread(processor.execute_prompt, prompt, user_id)
+            )
+
+            elapsed = 0
+            while not task.done() and elapsed < MAX_WAIT_SECONDS:
+                await asyncio.sleep(30)
+                elapsed += 30
+                if not task.done():
+                    try:
+                        await status_msg.edit_text(
+                            f"⏳ Выполняю... ({elapsed // 60}m {elapsed % 60}s)"
+                        )
+                    except Exception:
+                        pass
+
             if not task.done():
-                try:
-                    await status_msg.edit_text(
-                        f"⏳ Выполняю... ({elapsed // 60}m {elapsed % 60}s)"
-                    )
-                except Exception:
-                    pass
+                task.cancel()
+                return {"error": "Processing timed out"}
 
-        return await task
+            return await task
 
-    report = await run_with_progress()
+        report = await run_with_progress()
 
-    formatted = format_process_report(report)
-    try:
-        await status_msg.edit_text(formatted)
+        formatted = format_process_report(report)
+        try:
+            await status_msg.edit_text(formatted)
+        except Exception:
+            # Fallback: send without HTML parsing
+            await status_msg.edit_text(formatted, parse_mode=None)
     except Exception:
-        # Fallback: send without HTML parsing
-        await status_msg.edit_text(formatted, parse_mode=None)
+        logger.exception("Unhandled error in /do handler")
+        try:
+            await status_msg.edit_text("❌ Internal error. Check logs.")
+        except Exception:
+            pass

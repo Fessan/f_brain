@@ -82,6 +82,8 @@ Migration phase is accepted only if:
 4. Output contract checks pass in both provider modes.
 5. No unresolved high-severity regressions in vault writes or Todoist actions.
 
+Provider rollout decision is tracked in `docs/provider-rollout-policy.md`.
+
 ## Suggested Execution Order
 
 1. Run claude-cli positive suite.
@@ -89,3 +91,34 @@ Migration phase is accepted only if:
 3. Run failure-mode suite for each provider.
 4. Run concurrency checks.
 5. Run final smoke suite on scripts and bot commands.
+
+## Execution Status (2026-02-17, Local Docker Closed Contour)
+
+### Automated locally (PASS)
+
+- Output contract and sanitization checks:
+  - malformed HTML fallback behavior (N3)
+  - envelope/meta/tool_failures propagation on successful execution
+- Router/config fail-fast checks:
+  - missing OpenAI settings
+  - unsupported provider
+  - missing Claude binary branch
+- Runtime policy checks:
+  - handlers keep `asyncio.to_thread` for non-blocking strategy (C1/C2 precondition)
+- Session resilience:
+  - malformed JSONL line skip behavior (N7)
+- Weekly persistence path:
+  - summary generation + MOC update flow
+
+### Verified via Docker runtime smoke (PASS)
+
+- Container image build for closed contour.
+- Compose startup for both services (`bot`, `scheduler`).
+- Scheduler bootstrap and cron load via `supercronic`.
+
+### Blocked locally without real credentials/environment
+
+- Full Telegram command E2E for `/process`, `/do`, `/weekly` (P1-P8).
+- End-to-end script delivery checks with real Telegram chat (P9-P12).
+- Real Todoist integration failures/retries (N1).
+- Real network/provider outage behavior against live endpoints (N5, N6).

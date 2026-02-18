@@ -28,7 +28,14 @@ logger = logging.getLogger(__name__)
 async def main() -> None:
     """Generate weekly digest and send to Telegram."""
     settings = get_settings()
-    processor = LLMProcessor(settings.vault_path, settings.todoist_api_key)
+    processor = LLMProcessor(
+        settings.vault_path,
+        settings.todoist_api_key,
+        provider_name=settings.llm_provider,
+        openai_api_key=settings.openai_api_key,
+        openai_model=settings.openai_model,
+        openai_base_url=settings.openai_base_url,
+    )
     git = VaultGit(settings.vault_path)
 
     logger.info("Starting weekly digest generation...")
@@ -37,12 +44,14 @@ async def main() -> None:
     legacy_result = result_envelope.to_legacy_dict()
     report = format_process_report(legacy_result)
 
-    if result_envelope.error is not None:
+    has_error = result_envelope.error is not None
+
+    if has_error:
         logger.error("Weekly digest failed: %s", result_envelope.error)
     else:
         logger.info("Weekly digest generated successfully")
-        # Commit any changes
-        git.commit_and_push("chore: weekly digest")
+        if not git.commit_and_push("chore: weekly digest"):
+            logger.warning("Git commit/push failed for weekly digest")
 
     # Send to Telegram
     bot = Bot(
@@ -53,7 +62,7 @@ async def main() -> None:
         user_id = settings.allowed_user_ids[0] if settings.allowed_user_ids else None
         if not user_id:
             logger.error("No allowed user IDs configured")
-            return
+            sys.exit(1 if has_error else 0)
 
         try:
             await bot.send_message(chat_id=user_id, text=report)
@@ -61,10 +70,18 @@ async def main() -> None:
             # Fallback: send without HTML parsing
             await bot.send_message(chat_id=user_id, text=report, parse_mode=None)
 
+        if has_error:
+            logger.error("Weekly digest completed with errors")
+            sys.exit(1)
+
         logger.info("Weekly digest sent to user %s", user_id)
     finally:
         await bot.session.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception:
+        logging.exception("Weekly digest script failed")
+        sys.exit(1)

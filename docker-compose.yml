@@ -1,0 +1,47 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: f-brain:latest
+    env_file:
+      - .env
+    working_dir: /app
+    environment:
+      TZ: "${TZ:-UTC}"
+    volumes:
+      - vault-data:/app/vault
+      - git-data:/app/.git
+      - claude-data:/home/app/.claude
+    command: ["uv", "run", "python", "-m", "d_brain"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import d_brain' 2>/dev/null"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  scheduler:
+    image: f-brain:latest
+    depends_on:
+      bot:
+        condition: service_started
+    env_file:
+      - .env
+    working_dir: /app
+    environment:
+      TZ: "${TZ:-UTC}"
+      DAILY_CRON: "${DAILY_CRON:-0 21 * * *}"
+      WEEKLY_CRON: "${WEEKLY_CRON:-0 9 * * 1}"
+    volumes:
+      - vault-data:/app/vault
+      - git-data:/app/.git
+      - claude-data:/home/app/.claude
+    command: ["bash", "scripts/run_scheduler.sh"]
+    restart: unless-stopped
+
+volumes:
+  vault-data:
+  git-data:
+  claude-data:

@@ -13,6 +13,64 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 1200  # 20 minutes
 
 
+def _daily_tool_instructions(provider_name: str) -> str:
+    if provider_name == "openai":
+        return """ПЕРВЫМ ДЕЛОМ: вызови todoist_user_info чтобы проверить доступ к инструментам.
+
+CRITICAL TOOL RULE:
+- Ты имеешь доступ к tools: todoist_user_info, todoist_add_tasks, todoist_find_completed_tasks, vault_read_file, vault_write_file, vault_list_files.
+- ВЫЗЫВАЙ tools напрямую.
+- НИКОГДА не пиши "MCP недоступен" или "добавь вручную".
+- Для задач: вызови todoist_add_tasks.
+- Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте."""
+
+    return """ПЕРВЫМ ДЕЛОМ: вызови mcp__todoist__user-info чтобы убедиться что MCP работает.
+
+CRITICAL MCP RULE:
+- ТЫ ИМЕЕШЬ ДОСТУП к mcp__todoist__* tools — ВЫЗЫВАЙ ИХ НАПРЯМУЮ.
+- НИКОГДА не пиши "MCP недоступен" или "добавь вручную".
+- Для задач: вызови mcp__todoist__add-tasks tool.
+- Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте."""
+
+
+def _prompt_tool_instructions(provider_name: str) -> str:
+    if provider_name == "openai":
+        return """ПЕРВЫМ ДЕЛОМ: вызови todoist_user_info чтобы проверить доступ к инструментам.
+
+CRITICAL TOOL RULE:
+- Ты имеешь доступ к tools: todoist_user_info, todoist_add_tasks, todoist_find_completed_tasks, vault_read_file, vault_write_file, vault_list_files.
+- ВЫЗЫВАЙ tools напрямую.
+- НИКОГДА не пиши "MCP недоступен" или "добавь вручную".
+- Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте."""
+
+    return """ПЕРВЫМ ДЕЛОМ: вызови mcp__todoist__user-info чтобы убедиться что MCP работает.
+
+CRITICAL MCP RULE:
+- ТЫ ИМЕЕШЬ ДОСТУП к mcp__todoist__* tools — ВЫЗЫВАЙ ИХ НАПРЯМУЮ.
+- НИКОГДА не пиши "MCP недоступен" или "добавь вручную".
+- Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте."""
+
+
+def _weekly_tool_instructions(provider_name: str) -> str:
+    if provider_name == "openai":
+        return """ПЕРВЫМ ДЕЛОМ: вызови todoist_user_info чтобы проверить доступ к инструментам.
+
+CRITICAL TOOL RULE:
+- Ты имеешь доступ к tools: todoist_user_info, todoist_add_tasks, todoist_find_completed_tasks, vault_read_file, vault_write_file, vault_list_files.
+- ВЫЗЫВАЙ tools напрямую.
+- НИКОГДА не пиши "MCP недоступен" или "добавь вручную".
+- Для выполненных задач: вызови todoist_find_completed_tasks.
+- Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте."""
+
+    return """ПЕРВЫМ ДЕЛОМ: вызови mcp__todoist__user-info чтобы убедиться что MCP работает.
+
+CRITICAL MCP RULE:
+- ТЫ ИМЕЕШЬ ДОСТУП к mcp__todoist__* tools — ВЫЗЫВАЙ ИХ НАПРЯМУЮ.
+- НИКОГДА не пиши "MCP недоступен" или "добавь вручную".
+- Для выполненных задач: вызови mcp__todoist__find-completed-tasks tool.
+- Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте."""
+
+
 class PromptContextLoader:
     """Loads context files and session snippets for prompts."""
 
@@ -23,14 +81,14 @@ class PromptContextLoader:
         """Load dbrain-processor skill content if present."""
         skill_path = self.vault_path / ".claude/skills/dbrain-processor/SKILL.md"
         if skill_path.exists():
-            return skill_path.read_text()
+            return skill_path.read_text(encoding="utf-8")
         return ""
 
     def load_todoist_reference(self) -> str:
         """Load Todoist reference file if present."""
         ref_path = self.vault_path / ".claude/skills/dbrain-processor/references/todoist.md"
         if ref_path.exists():
-            return ref_path.read_text()
+            return ref_path.read_text(encoding="utf-8")
         return ""
 
     def get_session_context(self, user_id: int) -> str:
@@ -89,13 +147,7 @@ class DailyProcessingUseCase:
 {self.context_loader.load_skill_content()}
 === END SKILL ===
 
-ПЕРВЫМ ДЕЛОМ: вызови mcp__todoist__user-info чтобы убедиться что MCP работает.
-
-CRITICAL MCP RULE:
-- ТЫ ИМЕЕШЬ ДОСТУП к mcp__todoist__* tools — ВЫЗЫВАЙ ИХ НАПРЯМУЮ
-- НИКОГДА не пиши "MCP недоступен" или "добавь вручную"
-- Для задач: вызови mcp__todoist__add-tasks tool
-- Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте
+{_daily_tool_instructions(self.provider.name)}
 
 CRITICAL OUTPUT FORMAT:
 - Return ONLY raw HTML for Telegram (parse_mode=HTML)
@@ -121,7 +173,10 @@ CRITICAL OUTPUT FORMAT:
                 error=result.stderr or "Daily processing failed",
                 processed_entries=0,
                 provider=result.provider,
-                meta={"returncode": result.returncode},
+                meta={
+                    "returncode": result.returncode,
+                    **result.meta,
+                },
                 timings={"total_seconds": round(time.monotonic() - started_at, 3)},
             )
 
@@ -129,7 +184,11 @@ CRITICAL OUTPUT FORMAT:
             report=result.stdout.strip(),
             processed_entries=1,
             provider=result.provider,
-            meta={"returncode": result.returncode},
+            tool_failures=list(result.meta.get("tool_failures", [])),
+            meta={
+                "returncode": result.returncode,
+                **result.meta,
+            },
             timings={"total_seconds": round(time.monotonic() - started_at, 3)},
         )
 
@@ -164,12 +223,7 @@ CONTEXT:
 {todoist_reference}
 === END REFERENCE ===
 
-ПЕРВЫМ ДЕЛОМ: вызови mcp__todoist__user-info чтобы убедиться что MCP работает.
-
-CRITICAL MCP RULE:
-- ТЫ ИМЕЕШЬ ДОСТУП к mcp__todoist__* tools — ВЫЗЫВАЙ ИХ НАПРЯМУЮ
-- НИКОГДА не пиши "MCP недоступен" или "добавь вручную"
-- Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте
+{_prompt_tool_instructions(self.provider.name)}
 
 USER REQUEST:
 {user_prompt}
@@ -183,7 +237,7 @@ CRITICAL OUTPUT FORMAT:
 
 EXECUTION:
 1. Analyze the request
-2. Call MCP tools directly (mcp__todoist__*, read/write files)
+2. Call available Todoist/Vault tools directly
 3. Return HTML status report with results"""
 
         try:
@@ -203,7 +257,10 @@ EXECUTION:
                 error=result.stderr or "Prompt execution failed",
                 processed_entries=0,
                 provider=result.provider,
-                meta={"returncode": result.returncode},
+                meta={
+                    "returncode": result.returncode,
+                    **result.meta,
+                },
                 timings={"total_seconds": round(time.monotonic() - started_at, 3)},
             )
 
@@ -211,7 +268,11 @@ EXECUTION:
             report=result.stdout.strip(),
             processed_entries=1,
             provider=result.provider,
-            meta={"returncode": result.returncode},
+            tool_failures=list(result.meta.get("tool_failures", [])),
+            meta={
+                "returncode": result.returncode,
+                **result.meta,
+            },
             timings={"total_seconds": round(time.monotonic() - started_at, 3)},
         )
 
@@ -232,11 +293,12 @@ class WeeklyDigestUseCase:
         """Convert Telegram HTML to Obsidian markdown."""
         import re
 
+        flags = re.DOTALL
         text = value
-        text = re.sub(r"<b>(.*?)</b>", r"**\1**", text)
-        text = re.sub(r"<i>(.*?)</i>", r"*\1*", text)
-        text = re.sub(r"<code>(.*?)</code>", r"`\1`", text)
-        text = re.sub(r"<s>(.*?)</s>", r"~~\1~~", text)
+        text = re.sub(r"<b>(.*?)</b>", r"**\1**", text, flags=flags)
+        text = re.sub(r"<i>(.*?)</i>", r"*\1*", text, flags=flags)
+        text = re.sub(r"<code>(.*?)</code>", r"`\1`", text, flags=flags)
+        text = re.sub(r"<s>(.*?)</s>", r"~~\1~~", text, flags=flags)
         text = re.sub(r"</?u>", "", text)
         text = re.sub(r'<a href="([^"]+)">([^<]+)</a>', r"[\2](\1)", text)
         return text
@@ -255,7 +317,8 @@ week: {year}-W{week:02d}
 ---
 
 """
-        summary_path.write_text(frontmatter + content)
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(frontmatter + content, encoding="utf-8")
         logger.info("Weekly summary saved to %s", summary_path)
         return summary_path
 
@@ -265,16 +328,17 @@ week: {year}-W{week:02d}
         if not moc_path.exists():
             return
 
-        content = moc_path.read_text()
+        content = moc_path.read_text(encoding="utf-8")
         link = f"- [[summaries/{summary_path.name}|{summary_path.stem}]]"
         if summary_path.stem in content:
             return
 
-        content = content.replace(
-            "## Previous Weeks\n",
-            f"## Previous Weeks\n\n{link}\n",
-        )
-        moc_path.write_text(content)
+        marker = "## Previous Weeks\n"
+        if marker in content:
+            content = content.replace(marker, f"{marker}\n{link}\n")
+        else:
+            content = content.rstrip() + f"\n\n{link}\n"
+        moc_path.write_text(content, encoding="utf-8")
         logger.info("Updated MOC-weekly.md with link to %s", summary_path.stem)
 
     def run(self) -> LLMResponseEnvelope:
@@ -282,16 +346,10 @@ week: {year}-W{week:02d}
         today = date.today()
         prompt = f"""Сегодня {today}. Сгенерируй недельный дайджест.
 
-ПЕРВЫМ ДЕЛОМ: вызови mcp__todoist__user-info чтобы убедиться что MCP работает.
-
-CRITICAL MCP RULE:
-- ТЫ ИМЕЕШЬ ДОСТУП к mcp__todoist__* tools — ВЫЗЫВАЙ ИХ НАПРЯМУЮ
-- НИКОГДА не пиши "MCP недоступен" или "добавь вручную"
-- Для выполненных задач: вызови mcp__todoist__find-completed-tasks tool
-- Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте
+{_weekly_tool_instructions(self.provider.name)}
 
 WORKFLOW:
-1. Собери данные за неделю (daily файлы в vault/daily/, completed tasks через MCP)
+1. Собери данные за неделю (daily файлы в vault/daily/, completed tasks через доступные tools)
 2. Проанализируй прогресс по целям (goals/3-weekly.md)
 3. Определи победы и вызовы
 4. Сгенерируй HTML отчёт
@@ -320,7 +378,10 @@ CRITICAL OUTPUT FORMAT:
                 error=result.stderr or "Weekly digest failed",
                 processed_entries=0,
                 provider=result.provider,
-                meta={"returncode": result.returncode},
+                meta={
+                    "returncode": result.returncode,
+                    **result.meta,
+                },
                 timings={"total_seconds": round(time.monotonic() - started_at, 3)},
             )
 
@@ -335,6 +396,10 @@ CRITICAL OUTPUT FORMAT:
             report=output,
             processed_entries=1,
             provider=result.provider,
-            meta={"returncode": result.returncode},
+            tool_failures=list(result.meta.get("tool_failures", [])),
+            meta={
+                "returncode": result.returncode,
+                **result.meta,
+            },
             timings={"total_seconds": round(time.monotonic() - started_at, 3)},
         )

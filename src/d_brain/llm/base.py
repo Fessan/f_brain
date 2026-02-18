@@ -39,6 +39,8 @@ class LLMResponseEnvelope:
             payload["error"] = self.error
             return payload
         payload["report"] = self.report
+        if self.tool_failures:
+            payload["tool_failures"] = self.tool_failures
         return payload
 
 
