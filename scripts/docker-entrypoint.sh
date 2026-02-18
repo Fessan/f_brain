@@ -29,11 +29,13 @@ fix_ownership() {
 ensure_dir /app/.git
 ensure_dir /app/vault
 ensure_dir /home/app/.claude
+ensure_dir /home/app/.codex
 
 seed_git_metadata
 
 fix_ownership /app/.git
 fix_ownership /app/vault
 fix_ownership /home/app/.claude
+fix_ownership /home/app/.codex
 
 exec gosu app "$@"

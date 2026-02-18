@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     telegram_bot_token: str = Field(description="Telegram Bot API token")
     deepgram_api_key: str = Field(description="Deepgram API key for transcription")
     todoist_api_key: str = Field(default="", description="Todoist API key for tasks")
-    llm_provider: Literal["claude-cli", "openai"] = Field(
-        default="claude-cli",
+    llm_provider: Literal["openai-cli", "claude-cli", "openai-api"] = Field(
+        default="openai-cli",
         description="LLM provider backend",
     )
     openai_api_key: str = Field(default="", description="OpenAI-compatible API key")
@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_llm_config(self) -> "Settings":
         """Validate provider-specific settings."""
-        if self.llm_provider == "openai":
+        if self.llm_provider == "openai-api":
             missing: list[str] = []
             if not self.openai_api_key:
                 missing.append("OPENAI_API_KEY")
@@ -70,7 +70,7 @@ class Settings(BaseSettings):
             if missing:
                 missing_str = ", ".join(missing)
                 raise ValueError(
-                    f"LLM_PROVIDER=openai requires the following settings: {missing_str}"
+                    f"LLM_PROVIDER=openai-api requires the following settings: {missing_str}"
                 )
         return self
 

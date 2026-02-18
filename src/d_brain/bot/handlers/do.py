@@ -11,6 +11,7 @@ from aiogram.types import Message
 from d_brain.bot.formatters import format_process_report
 from d_brain.bot.states import DoCommandState
 from d_brain.config import get_settings
+from d_brain.services.model_provider import get_active_provider
 from d_brain.services.processor import ClaudeProcessor
 from d_brain.services.transcription import DeepgramTranscriber
 
@@ -94,10 +95,11 @@ async def process_request(message: Message, prompt: str, user_id: int = 0) -> No
 
     try:
         settings = get_settings()
+        active_provider = get_active_provider(settings.llm_provider)
         processor = ClaudeProcessor(
             settings.vault_path,
             settings.todoist_api_key,
-            provider_name=settings.llm_provider,
+            provider_name=active_provider,
             openai_api_key=settings.openai_api_key,
             openai_model=settings.openai_model,
             openai_base_url=settings.openai_base_url,

@@ -7,6 +7,7 @@ from d_brain.llm.base import (
     LLMResponseEnvelope,
 )
 from d_brain.llm.claude_cli import ClaudeCLIProvider
+from d_brain.llm.codex_cli import CodexCLIProvider
 from d_brain.llm.openai_api import OpenAIProvider
 from d_brain.llm.runtime import DefaultToolRuntime
 from d_brain.llm.router import create_default_provider, create_provider
@@ -26,6 +27,7 @@ from d_brain.llm.tools import (
 
 __all__ = [
     "ClaudeCLIProvider",
+    "CodexCLIProvider",
     "DailyProcessingUseCase",
     "ExecutePromptUseCase",
     "LLMExecutionResult",

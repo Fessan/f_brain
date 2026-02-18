@@ -3,7 +3,7 @@ COMPOSE := docker compose
 BOT := bot
 SCHEDULER := scheduler
 
-.PHONY: build up down restart logs logs-bot logs-scheduler ps check test process-daily weekly deploy claude-auth
+.PHONY: build up down restart logs logs-bot logs-scheduler ps check test process-daily weekly deploy claude-auth codex-auth
 
 build:
 	$(COMPOSE) build $(BOT)
@@ -52,5 +52,8 @@ weekly:
 
 claude-auth:
 	$(COMPOSE) run --rm -it --no-deps $(BOT) claude auth login
+
+codex-auth:
+	$(COMPOSE) run --rm -it --no-deps $(BOT) codex login
 
 deploy: build up

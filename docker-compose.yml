@@ -13,10 +13,11 @@ services:
       - vault-data:/app/vault
       - git-data:/app/.git
       - claude-data:/home/app/.claude
+      - codex-data:/home/app/.codex
     command: ["uv", "run", "python", "-m", "d_brain"]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c 'import d_brain' 2>/dev/null"]
+      test: ["CMD-SHELL", "uv run python -c 'import d_brain' 2>/dev/null"]
       interval: 60s
       timeout: 10s
       retries: 3
@@ -38,6 +39,7 @@ services:
       - vault-data:/app/vault
       - git-data:/app/.git
       - claude-data:/home/app/.claude
+      - codex-data:/home/app/.codex
     command: ["bash", "scripts/run_scheduler.sh"]
     restart: unless-stopped
 
@@ -45,3 +47,4 @@ volumes:
   vault-data:
   git-data:
   claude-data:
+  codex-data:

@@ -8,6 +8,7 @@ from aiogram.types import Message
 
 from d_brain.bot.keyboards import get_main_keyboard
 from d_brain.config import get_settings
+from d_brain.services.model_provider import get_active_provider, get_provider_label
 from d_brain.services.session import SessionStore
 from d_brain.services.storage import VaultStorage
 
@@ -17,6 +18,8 @@ router = Router(name="commands")
 @router.message(Command("start"))
 async def cmd_start(message: Message) -> None:
     """Handle /start command."""
+    settings = get_settings()
+    active_provider = get_active_provider(settings.llm_provider)
     await message.answer(
         "<b>d-brain</b> - твой голосовой дневник\n\n"
         "Отправляй мне:\n"
@@ -30,7 +33,8 @@ async def cmd_start(message: Message) -> None:
         "/process - обработать записи\n"
         "/do - выполнить произвольный запрос\n"
         "/weekly - недельный дайджест\n"
-        "/help - справка",
+        "/help - справка\n\n"
+        f"<b>Активная модель:</b> {get_provider_label(active_provider)}",
         reply_markup=get_main_keyboard(),
     )
 
@@ -38,6 +42,8 @@ async def cmd_start(message: Message) -> None:
 @router.message(Command("help"))
 async def cmd_help(message: Message) -> None:
     """Handle /help command."""
+    settings = get_settings()
+    active_provider = get_active_provider(settings.llm_provider)
     await message.answer(
         "<b>Как использовать d-brain:</b>\n\n"
         "1. Отправь голосовое — я транскрибирую и сохраню\n"
@@ -50,7 +56,9 @@ async def cmd_help(message: Message) -> None:
         "/status - сколько записей сегодня\n"
         "/process - обработать записи\n"
         "/do - выполнить произвольный запрос\n"
-        "/weekly - недельный дайджест\n\n"
+        "/weekly - недельный дайджест\n"
+        "Кнопки: 🤖 GPT / 🧠 Claude — переключение модели\n\n"
+        f"<b>Текущая модель:</b> {get_provider_label(active_provider)}\n\n"
         "<i>Пример: /do перенеси просроченные задачи на понедельник</i>"
     )
 
@@ -60,6 +68,7 @@ async def cmd_status(message: Message) -> None:
     """Handle /status command."""
     user_id = message.from_user.id if message.from_user else 0
     settings = get_settings()
+    active_provider = get_active_provider(settings.llm_provider)
     storage = VaultStorage(settings.vault_path)
 
     # Log command
@@ -93,6 +102,7 @@ async def cmd_status(message: Message) -> None:
 
     await message.answer(
         f"📅 <b>{today}</b>\n\n"
+        f"Активная модель: <b>{get_provider_label(active_provider)}</b>\n"
         f"Всего записей: <b>{total}</b>\n"
         f"- 🎤 Голосовых: {voice_count}\n"
         f"- 💬 Текстовых: {text_count}\n"

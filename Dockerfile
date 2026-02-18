@@ -30,9 +30,11 @@ RUN curl -fsSL "https://github.com/aptible/supercronic/releases/download/v0.2.37
     && chmod +x /usr/local/bin/supercronic
 
 RUN npm install -g @anthropic-ai/claude-code
+RUN npm install -g @openai/codex
 
 RUN useradd --create-home --uid 1000 app \
     && mkdir -p /home/app/.claude \
+    && mkdir -p /home/app/.codex \
     && chown -R app:app /home/app
 
 WORKDIR /app

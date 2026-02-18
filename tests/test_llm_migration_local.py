@@ -163,25 +163,29 @@ def test_router_validation_errors(monkeypatch, tmp_path: Path) -> None:
     vault = _prepare_vault(tmp_path)
 
     with pytest.raises(ValueError, match="OPENAI_API_KEY"):
-        create_provider(vault, provider_name="openai", openai_model="gpt-4o-mini")
+        create_provider(vault, provider_name="openai-api", openai_model="gpt-4o-mini")
 
     with pytest.raises(ValueError, match="Unsupported LLM provider"):
         create_provider(vault, provider_name="unknown")
 
     monkeypatch.setattr("d_brain.llm.router.which", lambda _: None)
     with pytest.raises(ValueError, match="binary is not in PATH"):
+        create_provider(vault, provider_name="openai-cli")
+
+    monkeypatch.setattr("d_brain.llm.router.which", lambda name: "/usr/bin/codex" if name == "codex" else None)
+    with pytest.raises(ValueError, match="binary is not in PATH"):
         create_provider(vault, provider_name="claude-cli")
 
 
 def test_provider_specific_tool_instructions_switch() -> None:
-    openai_daily = _daily_tool_instructions("openai")
+    openai_daily = _daily_tool_instructions("openai-api")
     assert "todoist_user_info" in openai_daily
     assert "mcp__todoist__" not in openai_daily
 
     claude_prompt = _prompt_tool_instructions("claude-cli")
     assert "mcp__todoist__user-info" in claude_prompt
 
-    openai_weekly = _weekly_tool_instructions("openai")
+    openai_weekly = _weekly_tool_instructions("openai-api")
     assert "todoist_find_completed_tasks" in openai_weekly
 
 

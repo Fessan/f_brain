@@ -14,7 +14,7 @@ DEFAULT_TIMEOUT = 1200  # 20 minutes
 
 
 def _daily_tool_instructions(provider_name: str) -> str:
-    if provider_name == "openai":
+    if provider_name == "openai-api":
         return """ПЕРВЫМ ДЕЛОМ: вызови todoist_user_info чтобы проверить доступ к инструментам.
 
 CRITICAL TOOL RULE:
@@ -34,7 +34,7 @@ CRITICAL MCP RULE:
 
 
 def _prompt_tool_instructions(provider_name: str) -> str:
-    if provider_name == "openai":
+    if provider_name == "openai-api":
         return """ПЕРВЫМ ДЕЛОМ: вызови todoist_user_info чтобы проверить доступ к инструментам.
 
 CRITICAL TOOL RULE:
@@ -52,7 +52,7 @@ CRITICAL MCP RULE:
 
 
 def _weekly_tool_instructions(provider_name: str) -> str:
-    if provider_name == "openai":
+    if provider_name == "openai-api":
         return """ПЕРВЫМ ДЕЛОМ: вызови todoist_user_info чтобы проверить доступ к инструментам.
 
 CRITICAL TOOL RULE:

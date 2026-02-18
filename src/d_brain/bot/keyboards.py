@@ -14,5 +14,8 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
     # Second row: additional
     builder.button(text="✨ Запрос")
     builder.button(text="❓ Помощь")
-    builder.adjust(3, 2)  # 3 in first row, 2 in second
+    # Third row: model switch
+    builder.button(text="🤖 GPT")
+    builder.button(text="🧠 Claude")
+    builder.adjust(3, 2, 2)
     return builder.as_markup(resize_keyboard=True, is_persistent=True)
