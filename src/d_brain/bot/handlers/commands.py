@@ -59,6 +59,7 @@ async def cmd_help(message: Message) -> None:
         "/weekly - недельный дайджест\n"
         "Кнопки: 🤖 GPT / 🧠 Claude — переключение модели\n\n"
         f"<b>Текущая модель:</b> {get_provider_label(active_provider)}\n\n"
+        f"<b>Бэкенд задач (.env):</b> {settings.task_backend}\n\n"
         "<i>Пример: /do перенеси просроченные задачи на понедельник</i>"
     )
 
@@ -103,6 +104,7 @@ async def cmd_status(message: Message) -> None:
     await message.answer(
         f"📅 <b>{today}</b>\n\n"
         f"Активная модель: <b>{get_provider_label(active_provider)}</b>\n"
+        f"Бэкенд задач: <b>{settings.task_backend}</b>\n"
         f"Всего записей: <b>{total}</b>\n"
         f"- 🎤 Голосовых: {voice_count}\n"
         f"- 💬 Текстовых: {text_count}\n"

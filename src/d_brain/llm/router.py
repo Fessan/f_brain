@@ -1,5 +1,6 @@
 """Provider factory functions."""
 
+import os
 from pathlib import Path
 from shutil import which
 
@@ -16,6 +17,7 @@ def create_provider(
     *,
     provider_name: str = "openai-cli",
     todoist_api_key: str = "",
+    singularity_api_key: str = "",
     openai_api_key: str = "",
     openai_model: str = "",
     openai_base_url: str = "https://api.openai.com/v1",
@@ -33,15 +35,18 @@ def create_provider(
         return CodexCLIProvider(
             workdir=resolved_vault.parent,
             todoist_api_key=todoist_api_key,
+            singularity_api_key=singularity_api_key,
         )
 
     if provider_name == "claude-cli":
         if which("claude") is None:
             raise ValueError("LLM provider 'claude-cli' selected but 'claude' binary is not in PATH")
+        mcp_config_rel = os.environ.get("MCP_CONFIG_PATH", "mcp-config.json")
         return ClaudeCLIProvider(
             workdir=resolved_vault.parent,
-            mcp_config_path=(resolved_vault.parent / "mcp-config.json").resolve(),
+            mcp_config_path=(resolved_vault.parent / mcp_config_rel).resolve(),
             todoist_api_key=todoist_api_key,
+            singularity_api_key=singularity_api_key,
         )
 
     if provider_name == "openai-api":

@@ -9,6 +9,7 @@ import pytest
 
 from d_brain.bot.formatters import format_process_report
 from d_brain.llm.base import LLMExecutionResult, LLMProvider, LLMProviderError
+from d_brain.llm.claude_cli import ClaudeCLIProvider
 from d_brain.llm.router import create_provider
 from d_brain.llm.use_cases import (
     DailyProcessingUseCase,
@@ -178,15 +179,33 @@ def test_router_validation_errors(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_provider_specific_tool_instructions_switch() -> None:
-    openai_daily = _daily_tool_instructions("openai-api")
+    openai_daily = _daily_tool_instructions("openai-api", "todoist")
     assert "todoist_user_info" in openai_daily
     assert "mcp__todoist__" not in openai_daily
 
-    claude_prompt = _prompt_tool_instructions("claude-cli")
+    claude_prompt = _prompt_tool_instructions("claude-cli", "todoist")
     assert "mcp__todoist__user-info" in claude_prompt
 
-    openai_weekly = _weekly_tool_instructions("openai-api")
+    openai_weekly = _weekly_tool_instructions("openai-api", "todoist")
     assert "todoist_find_completed_tasks" in openai_weekly
+
+    singularity_prompt = _prompt_tool_instructions("claude-cli", "singularity")
+    assert "Singularity" in singularity_prompt
+    assert "НЕ используй Todoist" in singularity_prompt
+
+
+def test_claude_provider_uses_mcp_config_path_env(monkeypatch, tmp_path: Path) -> None:
+    vault = _prepare_vault(tmp_path)
+    monkeypatch.setattr(
+        "d_brain.llm.router.which",
+        lambda name: "/usr/bin/claude" if name == "claude" else None,
+    )
+    monkeypatch.setenv("MCP_CONFIG_PATH", "custom-mcp.json")
+
+    provider = create_provider(vault, provider_name="claude-cli")
+
+    assert isinstance(provider, ClaudeCLIProvider)
+    assert provider.mcp_config_path == (vault.parent / "custom-mcp.json").resolve()
 
 
 def test_handlers_keep_to_thread_for_non_blocking_policy() -> None:

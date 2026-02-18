@@ -13,7 +13,15 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 1200  # 20 minutes
 
 
-def _daily_tool_instructions(provider_name: str) -> str:
+def _daily_tool_instructions(provider_name: str, task_backend: str) -> str:
+    if task_backend == "singularity":
+        return """ПЕРВЫМ ДЕЛОМ: используй MCP tools сервера Singularity из MCP_CONFIG_PATH.
+
+CRITICAL MCP RULE:
+- Работай ТОЛЬКО с Singularity-интеграцией.
+- НЕ используй Todoist tools.
+- Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте."""
+
     if provider_name == "openai-api":
         return """ПЕРВЫМ ДЕЛОМ: вызови todoist_user_info чтобы проверить доступ к инструментам.
 
@@ -33,7 +41,15 @@ CRITICAL MCP RULE:
 - Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте."""
 
 
-def _prompt_tool_instructions(provider_name: str) -> str:
+def _prompt_tool_instructions(provider_name: str, task_backend: str) -> str:
+    if task_backend == "singularity":
+        return """ПЕРВЫМ ДЕЛОМ: используй MCP tools сервера Singularity из MCP_CONFIG_PATH.
+
+CRITICAL MCP RULE:
+- Работай ТОЛЬКО с Singularity-интеграцией.
+- НЕ используй Todoist tools.
+- Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте."""
+
     if provider_name == "openai-api":
         return """ПЕРВЫМ ДЕЛОМ: вызови todoist_user_info чтобы проверить доступ к инструментам.
 
@@ -51,7 +67,16 @@ CRITICAL MCP RULE:
 - Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте."""
 
 
-def _weekly_tool_instructions(provider_name: str) -> str:
+def _weekly_tool_instructions(provider_name: str, task_backend: str) -> str:
+    if task_backend == "singularity":
+        return """ПЕРВЫМ ДЕЛОМ: используй MCP tools сервера Singularity из MCP_CONFIG_PATH.
+
+CRITICAL MCP RULE:
+- Работай ТОЛЬКО с Singularity-интеграцией.
+- НЕ используй Todoist tools.
+- Для выполненных задач используй соответствующий Singularity tool.
+- Если tool вернул ошибку — покажи ТОЧНУЮ ошибку в отчёте."""
+
     if provider_name == "openai-api":
         return """ПЕРВЫМ ДЕЛОМ: вызови todoist_user_info чтобы проверить доступ к инструментам.
 
@@ -121,10 +146,12 @@ class DailyProcessingUseCase:
         vault_path: Path,
         provider: LLMProvider,
         context_loader: PromptContextLoader,
+        task_backend: str = "singularity",
     ) -> None:
         self.vault_path = Path(vault_path)
         self.provider = provider
         self.context_loader = context_loader
+        self.task_backend = task_backend
 
     def run(self, day: date | None = None) -> LLMResponseEnvelope:
         started_at = time.monotonic()
@@ -147,7 +174,7 @@ class DailyProcessingUseCase:
 {self.context_loader.load_skill_content()}
 === END SKILL ===
 
-{_daily_tool_instructions(self.provider.name)}
+{_daily_tool_instructions(self.provider.name, self.task_backend)}
 
 CRITICAL OUTPUT FORMAT:
 - Return ONLY raw HTML for Telegram (parse_mode=HTML)
@@ -202,10 +229,12 @@ class ExecutePromptUseCase:
         vault_path: Path,
         provider: LLMProvider,
         context_loader: PromptContextLoader,
+        task_backend: str = "singularity",
     ) -> None:
         self.vault_path = Path(vault_path)
         self.provider = provider
         self.context_loader = context_loader
+        self.task_backend = task_backend
 
     def run(self, user_prompt: str, user_id: int = 0) -> LLMResponseEnvelope:
         started_at = time.monotonic()
@@ -223,7 +252,7 @@ CONTEXT:
 {todoist_reference}
 === END REFERENCE ===
 
-{_prompt_tool_instructions(self.provider.name)}
+{_prompt_tool_instructions(self.provider.name, self.task_backend)}
 
 USER REQUEST:
 {user_prompt}
@@ -285,9 +314,11 @@ class WeeklyDigestUseCase:
         *,
         vault_path: Path,
         provider: LLMProvider,
+        task_backend: str = "singularity",
     ) -> None:
         self.vault_path = Path(vault_path)
         self.provider = provider
+        self.task_backend = task_backend
 
     def _html_to_markdown(self, value: str) -> str:
         """Convert Telegram HTML to Obsidian markdown."""
@@ -346,7 +377,7 @@ week: {year}-W{week:02d}
         today = date.today()
         prompt = f"""Сегодня {today}. Сгенерируй недельный дайджест.
 
-{_weekly_tool_instructions(self.provider.name)}
+{_weekly_tool_instructions(self.provider.name, self.task_backend)}
 
 WORKFLOW:
 1. Собери данные за неделю (daily файлы в vault/daily/, completed tasks через доступные tools)

@@ -520,7 +520,7 @@ VS Code скачал проект на ваш компьютер и открыл
 # Часть 2: Получите ключи ⏱ 15 мин
 
 **Что нужно собрать:**
-Вам понадобятся 4 секретных кода (токена). Соберите их все заранее и сохраните в надёжное место — блокнот, заметки или менеджер паролей.
+Вам понадобятся 4 обязательных секрета (и 1 опциональный для Singularity MCP). Соберите их заранее и сохраните в надёжное место — блокнот, заметки или менеджер паролей.
 
 | Токен | Откуда взять | Как выглядит |
 |-------|--------------|--------------|
@@ -528,6 +528,7 @@ VS Code скачал проект на ваш компьютер и открыл
 | Ваш Telegram ID | @userinfobot в Telegram | `123456789` |
 | Deepgram API Key | console.deepgram.com | Длинная строка |
 | Todoist API Token | todoist.com → Settings | 40 символов |
+| Singularity API Token *(опционально)* | me.singularity-app.com/rest-tokens | Длинная строка |
 
 ---
 
@@ -780,12 +781,27 @@ codex login --device-auth
 Если хотите API-режим, доступно `openai-api` (тогда нужны `OPENAI_API_KEY` и `OPENAI_MODEL`).
 Также можно выбрать `claude-cli`.
 
+Бэкенд задач переключается только через `.env`:
+- `TASK_BACKEND=singularity` *(по умолчанию)*
+- `TASK_BACKEND=todoist`
+
+Одновременно оба бэкенда не используются.
+
 Для Docker-режима авторизация выполняется командами:
 
 ```bash
 make codex-auth
 make claude-auth
 ```
+
+Если подключаете Singularity через MCP, используйте отдельный MCP-конфиг и укажите его в `.env`:
+
+```env
+MCP_CONFIG_PATH=mcp-config.singularity.json
+SINGULARITY_API_KEY=...
+```
+
+Подробно: `docs/integrations/singularity-mcp.md`.
 
 **Вы установили Claude Code и авторизовались — отлично!**
 
@@ -799,7 +815,7 @@ curl -fsSL https://raw.githubusercontent.com/ВАШ_ЛОГИН/agent-second-brai
 
 Скрипт сам:
 - Скачает ваш проект
-- Спросит у вас все токены (Telegram, Deepgram, Todoist)
+- Спросит у вас все токены (Telegram, Deepgram, Todoist; Singularity — опционально)
 - Создаст файл с настройками
 - Настроит автозапуск
 - Запустит бота
@@ -1040,17 +1056,20 @@ sudo systemctl start d-brain-bot
 
 ### MCP-серверы
 
-Эта система использует **MCP (Model Context Protocol)** — открытый стандарт от Anthropic для подключения AI к внешним сервисам. По умолчанию настроен Todoist, но вы можете подключить любой сервис, для которого есть MCP-сервер:
+Эта система использует **MCP (Model Context Protocol)** — открытый стандарт от Anthropic для подключения AI к внешним сервисам. По умолчанию настроен Todoist, и можно подключить Singularity App и другие MCP-сервисы.
 
 | Сервис | MCP-сервер | Что можно делать |
 |--------|------------|------------------|
 | **Todoist** | [@doist/todoist-ai](https://github.com/Doist/todoist-ai) | Задачи, проекты, приоритеты *(уже настроен)* |
+| **Singularity App** | [Singularity MCP config](https://singularity-app.com/wiki/mcp/) | Задачи и проекты в Singularity *(интеграция через отдельный MCP-конфиг)* |
 | **Google Workspace** | [google_workspace_mcp](https://github.com/taylorwilsdon/google_workspace_mcp) | Gmail, Calendar, Drive |
 | **Notion** | [notion-mcp-server](https://github.com/makenotion/notion-mcp-server) | Страницы, базы данных |
 | **Things 3** | [things-mcp](https://github.com/hald/things-mcp) | Задачи на macOS/iOS |
 | **GitHub** | [github-mcp-server](https://github.com/github/github-mcp-server) | Issues, PR, репозитории |
 
 Полный список: [github.com/modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers)
+
+Для Singularity пошаговая инструкция в этом репозитории: `docs/integrations/singularity-mcp.md`.
 
 ### Настройка systemd вручную
 

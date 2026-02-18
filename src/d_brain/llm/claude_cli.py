@@ -16,10 +16,12 @@ class ClaudeCLIProvider(LLMProvider):
         workdir: Path,
         mcp_config_path: Path,
         todoist_api_key: str = "",
+        singularity_api_key: str = "",
     ) -> None:
         self.workdir = Path(workdir)
         self.mcp_config_path = Path(mcp_config_path)
         self.todoist_api_key = todoist_api_key
+        self.singularity_api_key = singularity_api_key
 
     @property
     def name(self) -> str:
@@ -27,9 +29,14 @@ class ClaudeCLIProvider(LLMProvider):
 
     def execute(self, prompt: str, *, timeout: int) -> LLMExecutionResult:
         """Run a prompt through Claude CLI and return raw output."""
+        if not self.mcp_config_path.exists():
+            raise LLMProviderError(f"MCP config not found: {self.mcp_config_path}")
+
         env = os.environ.copy()
         if self.todoist_api_key:
             env["TODOIST_API_KEY"] = self.todoist_api_key
+        if self.singularity_api_key:
+            env["SINGULARITY_API_KEY"] = self.singularity_api_key
 
         try:
             result = subprocess.run(

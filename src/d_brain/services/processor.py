@@ -22,6 +22,8 @@ class LLMProcessor:
         self,
         vault_path: Path,
         todoist_api_key: str = "",
+        singularity_api_key: str = "",
+        task_backend: str = "singularity",
         provider_name: str = "claude-cli",
         openai_api_key: str = "",
         openai_model: str = "",
@@ -33,6 +35,7 @@ class LLMProcessor:
             self.vault_path,
             provider_name=provider_name,
             todoist_api_key=todoist_api_key,
+            singularity_api_key=singularity_api_key,
             openai_api_key=openai_api_key,
             openai_model=openai_model,
             openai_base_url=openai_base_url,
@@ -43,15 +46,18 @@ class LLMProcessor:
             vault_path=self.vault_path,
             provider=self.provider,
             context_loader=context_loader,
+            task_backend=task_backend,
         )
         self._prompt_use_case = ExecutePromptUseCase(
             vault_path=self.vault_path,
             provider=self.provider,
             context_loader=context_loader,
+            task_backend=task_backend,
         )
         self._weekly_use_case = WeeklyDigestUseCase(
             vault_path=self.vault_path,
             provider=self.provider,
+            task_backend=task_backend,
         )
 
     def process_daily_result(self, day: date | None = None) -> LLMResponseEnvelope:

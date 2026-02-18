@@ -56,6 +56,8 @@ async def main() -> None:
     processor = LLMProcessor(
         settings.vault_path,
         settings.todoist_api_key,
+        singularity_api_key=settings.singularity_api_key,
+        task_backend=settings.task_backend,
         provider_name=settings.llm_provider,
         openai_api_key=settings.openai_api_key,
         openai_model=settings.openai_model,

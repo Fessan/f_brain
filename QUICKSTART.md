@@ -10,14 +10,15 @@
 `f_brain` is a Telegram-based personal assistant:
 - receives voice/text/photo/forwarded messages,
 - stores them in an Obsidian-style vault,
-- uses a provider-selectable LLM layer (`claude-cli` or `openai`) for `/process`, `/do`, `/weekly`.
+- uses a provider-selectable LLM layer (`openai-cli`, `claude-cli`, `openai-api`) for `/process`, `/do`, `/weekly`.
 
 Runtime stack:
 - Python 3.12+
 - `uv` for dependency management
 - `httpx` for provider/tool HTTP calls
 - Claude CLI (`claude`) when `LLM_PROVIDER=claude-cli`
-- OpenAI-compatible API key/model when `LLM_PROVIDER=openai`
+- Codex CLI (`codex`) when `LLM_PROVIDER=openai-cli` (default)
+- OpenAI-compatible API key/model when `LLM_PROVIDER=openai-api`
 - Node.js (for Todoist MCP via `npx`) when using Claude MCP path
 - Docker + Docker Compose (closed-contour runtime/deploy path)
 
@@ -32,9 +33,12 @@ uv sync
 ```
 
 Provider config in `.env`:
-- Default mode: `LLM_PROVIDER=claude-cli`
-- OpenAI mode: set `LLM_PROVIDER=openai` and provide `OPENAI_API_KEY` + `OPENAI_MODEL`
+- Default mode: `LLM_PROVIDER=openai-cli`
+- Claude mode: set `LLM_PROVIDER=claude-cli`
+- API mode: set `LLM_PROVIDER=openai-api` and provide `OPENAI_API_KEY` + `OPENAI_MODEL`
+- Task backend switch: `TASK_BACKEND=singularity|todoist` (default: `singularity`)
 - Optional custom endpoint: `OPENAI_BASE_URL`
+- Optional Claude MCP path override: `MCP_CONFIG_PATH` (default `mcp-config.json`)
 - Scheduler config: `DAILY_CRON`, `WEEKLY_CRON`, `TZ`
 - Rollout/fallback policy: see `docs/provider-rollout-policy.md`
 
@@ -56,7 +60,8 @@ Docker + Make path:
 ```bash
 make build
 make up
-make claude-auth   # one-time, only for LLM_PROVIDER=claude-cli
+make codex-auth    # one-time, for default openai-cli mode
+make claude-auth   # one-time, if you use claude-cli mode
 make logs
 ```
 
@@ -82,7 +87,8 @@ make weekly
 | `docker-compose.yml` | Orchestration for `bot` + `scheduler` services |
 | `Makefile` | Unified build/test/deploy commands over docker compose |
 | `docs/provider-rollout-policy.md` | Production default/fallback provider policy |
-| `mcp-config.json` | Todoist MCP server config |
+| `mcp-config.json` | Default MCP server config (Todoist) |
+| `docs/integrations/singularity-mcp.md` | How to add Singularity via MCP |
 | `vault/` | Knowledge base and generated artifacts |
 
 ## Project Structure

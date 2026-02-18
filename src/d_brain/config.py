@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     telegram_bot_token: str = Field(description="Telegram Bot API token")
     deepgram_api_key: str = Field(description="Deepgram API key for transcription")
     todoist_api_key: str = Field(default="", description="Todoist API key for tasks")
+    singularity_api_key: str = Field(default="", description="Singularity API key/token for MCP")
+    task_backend: Literal["singularity", "todoist"] = Field(
+        default="singularity",
+        description="Task backend integration used by agent prompts",
+    )
     llm_provider: Literal["openai-cli", "claude-cli", "openai-api"] = Field(
         default="openai-cli",
         description="LLM provider backend",
@@ -61,12 +66,17 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_llm_config(self) -> "Settings":
         """Validate provider-specific settings."""
+        if self.task_backend == "todoist" and not self.todoist_api_key:
+            raise ValueError("TASK_BACKEND=todoist requires TODOIST_API_KEY")
+
         if self.llm_provider == "openai-api":
             missing: list[str] = []
             if not self.openai_api_key:
                 missing.append("OPENAI_API_KEY")
             if not self.openai_model:
                 missing.append("OPENAI_MODEL")
+            if self.task_backend == "singularity":
+                missing.append("TASK_BACKEND=todoist (singularity unsupported for openai-api)")
             if missing:
                 missing_str = ", ".join(missing)
                 raise ValueError(
